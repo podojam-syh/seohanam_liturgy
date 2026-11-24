@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>전례봉사 가능 날짜</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#1d1726;--mut:#6b6378;--vi:#5b2a86;--vi2:#efe7f7;--rose:#c2366f;--line:#e3dcec;--soft:#f7f3fb;--hd:#4a2170}
+@media(prefers-color-scheme:dark){:root{--bg:#15111c;--ink:#eee9f4;--mut:#a99fb8;--vi:#b996e3;--vi2:#2b2140;--rose:#f07aa6;--line:#2e2638;--soft:#1d1727;--hd:#2a1840}}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--soft);color:var(--ink);font:16px/1.55 "Noto Sans KR",system-ui,sans-serif}
+header{background:var(--hd);color:#fff;padding:32px 20px 28px}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-family:"Gowun Batang",serif;font-size:clamp(28px,7vw,38px);line-height:1.15;margin:0}
+header p{margin:10px 0 0;opacity:.9}
+main{padding:20px 16px 48px}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.card h2{font-size:15px;font-weight:500;color:var(--mut);margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+select,textarea{width:100%;font:inherit;font-size:17px;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:50px}
+textarea{min-height:80px;resize:vertical}
+.st{font-size:14px;margin:8px 0 0;color:var(--vi)}
+.dates{display:grid;gap:8px;margin-top:14px}
+.d{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;min-height:56px}
+.d input{width:24px;height:24px;accent-color:var(--vi);flex:none;margin:0}
+.d b{font-size:17px;white-space:nowrap}.d small{color:var(--mut);font-size:14px;margin-left:auto;text-align:right}
+.d:has(input:checked){border-color:var(--vi);background:var(--vi2)}
+.d.no{border-style:dashed}.d.no b{font-weight:500;font-size:16px}
+.dates.off .d:not(.no){opacity:.4;pointer-events:none}
+button{font:inherit;font-size:16px;font-weight:500;min-height:48px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button.pri{width:100%;min-height:56px;font-size:18px;background:var(--vi);border-color:var(--vi);color:#fff}
+@media(prefers-color-scheme:dark){button.pri{color:#15111c}}
+button.sib{width:100%;margin-top:12px;border-style:dashed;color:var(--vi)}
+button.x{min-height:36px;padding:0 10px;font-size:14px}
+button:disabled{opacity:.6}
+.add{width:100%;margin-bottom:14px}
+:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+.err{color:var(--rose);font-size:15px;margin:10px 0 0;min-height:1.5em}
+.note{font-size:14px;color:var(--mut);margin:10px 0 0}
+.banner{background:#fff3cd;color:#5c4400;border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+#done{display:none}#done.on{display:block}
+.sum{margin:12px 0 0;padding:0;list-style:none}.sum li{padding:8px 0;border-top:1px solid var(--line)}
+</style></head><body>
+<header><div class="wrap"><h1 id="ttl">전례봉사 가능 날짜</h1><p id="lead">봉사할 수 있는 날짜를 모두 체크해 주세요.</p></div></header>
+<main><div class="wrap">
+ <div class="banner" id="banner" hidden>아직 구글 시트가 연결되지 않은 미리보기예요. 제출해도 저장되지 않아요.</div>
+ <form id="f" novalidate>
+  <div id="kids"></div>
+  <button type="button" class="add" id="addKid">+ 아이 한 명 더</button>
+  <div class="card"><h2>전하실 말씀 (선택)</h2><textarea id="memo" placeholder="예: 12월 20일은 오후에 일정이 있어요"></textarea></div>
+  <button type="submit" class="pri" id="go">제출하기</button>
+  <p class="err" id="err" role="alert"></p>
+  <p class="note">다시 제출하면 마지막에 낸 내용으로 바뀌어요.</p>
+ </form>
+ <div class="card" id="done">
+  <h1 style="font-size:28px">제출했어요</h1>
+  <p>감사합니다. 일정표는 단톡방에 올려드릴게요.</p>
+  <ul class="sum" id="sum"></ul>
+  <button type="button" id="again" style="margin-top:14px">고쳐서 다시 내기</button>
+ </div>
+</div></main>
+<script>
+{
+// ===== 설정 =====
+const CONFIG = {
+  scriptUrl: '',          // Apps Script 웹 앱 URL (.../exec)
+  month: '',              // 비우면 자동: 15일부터는 다음 달, 그 전엔 이번 달. 직접 정하려면 '2026-12'
+  extraDates: [],         // 주일 말고 추가할 날 예: ['2026-12-24']
+  deadline: '',           // 예: '11월 30일(월)까지'
+  labels: {               // 날짜 옆에 보일 전례 이름 (없어도 됨)
+    '2026-12-06': '대림 제2주일', '2026-12-13': '대림 제3주일', '2026-12-20': '대림 제4주일', '2026-12-27': '성가정 축일'
+  },
+  kids: [
+    ['김민희','요안나','중1'],['정해든','도로티아','중1'],['김재인','에밀리아','중2'],
+    ['김세민','에디타','초4'],['윤찬영','제노','초4'],['장연수','글라라','초4'],
+    ['김다민','레베카','초5'],['김수민','카리타스','초5'],
+    ['김예빈','아나스타시아','초6'],['김지인','글라라','초6'],['문리원','다니엘라','초6'],['박제이','사라','초6'],
+    ['오지후','아나스타시아','초6'],['이세찬','프란치스코','초6'],['이지안','에스테르','초6'],['임세아','마리스텔라','초6'],['전예진','라파엘라','초6']
+  ],
+  siblings: [['김다민','김세민']]
+};
+// ================
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DOW='일월화수목금토';
+const pad=n=>String(n).padStart(2,'0');
+const now=new Date();
+let ym=CONFIG.month;
+if(!ym){const d=new Date(now.getFullYear(),now.getMonth()+(now.getDate()>=15?1:0),1);ym=d.getFullYear()+'-'+pad(d.getMonth()+1)}
+const [Y,M]=ym.split('-').map(Number);
+const dates=[];
+for(let d=new Date(Y,M-1,1);d.getMonth()===M-1;d.setDate(d.getDate()+1))if(d.getDay()===0)dates.push(Y+'-'+pad(M)+'-'+pad(d.getDate()));
+CONFIG.extraDates.forEach(x=>{if(x.startsWith(ym)&&!dates.includes(x))dates.push(x)});
+dates.sort();
+const dObj=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const val=s=>{const d=dObj(s);return(d.getMonth()+1)+'월 '+d.getDate()+'일'};
+const lab=s=>{const d=dObj(s);return val(s)+' ('+DOW[d.getDay()]+')'};
+const call=n=>{const g=n.slice(1),c=g.charCodeAt(g.length-1)-44032;return g+(c>=0&&c%28?'이':'')};
+const kidOf=n=>CONFIG.kids.find(k=>k[0]===n);
+const groups=[...new Set(CONFIG.kids.map(k=>k[2]))].sort((a,b)=>(a[0]==='중')-(b[0]==='중')||a.localeCompare(b,'ko'));
+
+$('#ttl').textContent=M+'월 전례봉사 가능 날짜';
+$('#lead').textContent='봉사할 수 있는 날짜를 모두 체크해 주세요.'+(CONFIG.deadline?' '+CONFIG.deadline+' 부탁드려요.':'');
+document.title=M+'월 전례봉사 가능 날짜';
+if(!CONFIG.scriptUrl)$('#banner').hidden=false;
+
+let submitted={};
+async function loadStatus(){
+ if(!CONFIG.scriptUrl)return {};
+ try{const r=await fetch(CONFIG.scriptUrl+'?month='+encodeURIComponent(ym),{cache:'no-store'});const j=await r.json();
+  const o={};(j.responses||[]).forEach(x=>o[x.name]=x);return o}catch(e){return null}
+}
+
+let seq=0;
+function kidCard(name){
+ const id='k'+(seq++);
+ const el=document.createElement('div');el.className='card kid';el.id=id;
+ el.innerHTML='<h2><span>아이 이름</span>'+(document.querySelectorAll('.kid').length?'<button type="button" class="x" data-rm>빼기</button>':'')+'</h2>'+
+  '<select aria-label="아이 이름"><option value="">이름을 골라주세요</option>'+groups.map(g=>'<optgroup label="'+esc(g)+'">'+CONFIG.kids.filter(k=>k[2]===g).map(k=>'<option value="'+esc(k[0])+'">'+esc(k[0]+' '+k[1])+'</option>').join('')+'</optgroup>').join('')+'</select>'+
+  '<p class="st" hidden></p>'+
+  '<div class="dates">'+dates.map(d=>'<label class="d"><input type="checkbox" value="'+d+'"><b>'+esc(lab(d))+'</b><small>'+esc(CONFIG.labels[d]||'')+'</small></label>').join('')+
+  '<label class="d no"><input type="checkbox" class="none"><b>이번 달은 봉사가 어려워요</b></label></div><div class="sibw"></div>';
+ $('#kids').appendChild(el);
+ const sel=el.querySelector('select');
+ if(name)sel.value=name;
+ sel.onchange=()=>update(el);
+ el.querySelector('.none').onchange=e=>{el.querySelector('.dates').classList.toggle('off',e.target.checked);if(e.target.checked)el.querySelectorAll('.d:not(.no) input').forEach(i=>i.checked=false)};
+ const rm=el.querySelector('[data-rm]');if(rm)rm.onclick=()=>{el.remove();document.querySelectorAll('.kid').forEach(update)};
+ update(el);return el;
+}
+function chosen(){return [...document.querySelectorAll('.kid select')].map(s=>s.value).filter(Boolean)}
+function update(el){
+ const n=el.querySelector('select').value,st=el.querySelector('.st'),sw=el.querySelector('.sibw');
+ const prev=submitted&&submitted[n];
+ st.hidden=!prev;
+ if(prev)st.textContent='이미 제출했어요 ('+(prev.dates.length?prev.dates.join(', '):'이번 달 어려움')+'). 다시 내면 바뀌어요.';
+ sw.innerHTML='';
+ const grp=CONFIG.siblings.find(g=>g.includes(n));
+ if(grp){const left=grp.filter(x=>x!==n&&!chosen().includes(x));
+  left.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='sib';b.textContent='+ '+call(s)+'도 같이 내기';
+   b.onclick=()=>{kidCard(s);document.querySelectorAll('.kid').forEach(update)};sw.appendChild(b)})}
+}
+
+$('#addKid').onclick=()=>{const c=kidCard();c.querySelector('select').focus()};
+
+function collect(){
+ const kids=[],seen=new Set();
+ for(const el of document.querySelectorAll('.kid')){
+  const n=el.querySelector('select').value;
+  if(!n)return {err:'아이 이름을 골라주세요.',el};
+  if(seen.has(n))return {err:n+' 이름이 두 번 들어가 있어요.',el};
+  seen.add(n);
+  const ds=[...el.querySelectorAll('.d:not(.no) input:checked')].map(i=>i.value);
+  const none=el.querySelector('.none').checked;
+  if(!ds.length&&!none)return {err:n+'의 가능한 날짜를 체크해 주세요. 어려우면 맨 아래 칸에 체크해 주세요.',el};
+  const k=kidOf(n);kids.push({name:n,baptism:k[1],grade:k[2],dates:ds.map(val),iso:ds});
+ }
+ return {kids};
+}
+
+$('#f').onsubmit=async e=>{
+ e.preventDefault();$('#err').textContent='';
+ const c=collect();if(c.err){$('#err').textContent=c.err;c.el.scrollIntoView({behavior:'smooth',block:'center'});return}
+ const body={month:ym,memo:$('#memo').value.trim(),kids:c.kids.map(({iso,...k})=>k)};
+ const go=$('#go');go.disabled=true;go.textContent='보내는 중…';
+ let ok=!CONFIG.scriptUrl;
+ if(CONFIG.scriptUrl){
+  try{const r=await fetch(CONFIG.scriptUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});const j=await r.json();ok=!!j.ok}
+  catch(err){
+   try{await fetch(CONFIG.scriptUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)})}catch(_){}
+   for(let i=0;i<3&&!ok;i++){await new Promise(r=>setTimeout(r,1500));const s=await loadStatus();
+    ok=!!s&&body.kids.every(k=>s[k.name]&&s[k.name].dates.join(', ')===k.dates.join(', '))}
+  }
+ }
+ go.disabled=false;go.textContent='제출하기';
+ if(!ok){$('#err').textContent='제출이 안 됐어요. 잠시 후 다시 눌러주세요. 계속 안 되면 선생님께 알려주세요.';return}
+ body.kids.forEach(k=>submitted[k.name]={dates:k.dates});
+ $('#sum').innerHTML=body.kids.map(k=>'<li><b>'+esc(k.name)+'</b> · '+esc(k.dates.length?k.dates.join(', '):'이번 달은 어려워요')+'</li>').join('');
+ $('#f').hidden=true;$('#done').classList.add('on');window.scrollTo(0,0);
+};
+$('#again').onclick=()=>{$('#done').classList.remove('on');$('#f').hidden=false;document.querySelectorAll('.kid').forEach(update)};
+
+kidCard();
+loadStatus().then(s=>{if(s){submitted=s;document.querySelectorAll('.kid').forEach(update)}});
+}
+</script>
+</body></html>
