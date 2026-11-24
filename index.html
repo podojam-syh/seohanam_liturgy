@@ -45,7 +45,7 @@ button:disabled{opacity:.6}
  <form id="f" novalidate>
   <div id="kids"></div>
   <button type="button" class="add" id="addKid">+ 아이 한 명 더</button>
-  <div class="card"><h2>전하실 말씀 (선택)</h2><textarea id="memo" placeholder="예: 12월 20일은 오후에 일정이 있어요"></textarea></div>
+  <div class="card"><h2>전하실 말씀 (선택)</h2><textarea id="memo" placeholder="예: 12월 19일은 저녁에 일정이 있어요"></textarea></div>
   <button type="submit" class="pri" id="go">제출하기</button>
   <p class="err" id="err" role="alert"></p>
   <p class="note">다시 제출하면 마지막에 낸 내용으로 바뀌어요.</p>
@@ -63,11 +63,12 @@ button:disabled{opacity:.6}
 const CONFIG = {
   scriptUrl: 'https://script.google.com/macros/s/AKfycbxUJeAeZ3VU4UlsncMQcDe6b1QH0GgzCEUTRwFRVyxRzwTvxyw45RbTV2_X5MuTU-oj/exec',          // Apps Script 웹 앱 URL (.../exec)
   month: '',              // 비우면 자동: 15일부터는 다음 달, 그 전엔 이번 달. 직접 정하려면 '2026-12'
-  skipLastSunday: true,   // 매월 마지막 주일은 주일학교가 없어서 뺌
-  extraDates: [],         // 주일 말고 추가할 날 예: ['2026-12-24']
+  serviceDay: 6,          // 봉사 요일 (0=일, 6=토)
+  skipLast: true,         // 매월 마지막 주는 주일학교가 없어서 뺌
+  extraDates: [],         // 정해진 요일 말고 추가할 날 예: ['2026-12-24']
   deadline: '',           // 예: '11월 30일(월)까지'
   labels: {               // 날짜 옆에 보일 전례 이름 (없어도 됨)
-    '2026-12-06': '대림 제2주일', '2026-12-13': '대림 제3주일', '2026-12-20': '대림 제4주일', '2026-12-27': '성가정 축일'
+    '2026-12-05': '대림 제2주일', '2026-12-12': '대림 제3주일', '2026-12-19': '대림 제4주일'
   },
   kids: [
     ['김민희','요안나','중1'],['정해든','도로티아','중1'],['김재인','에밀리아','중2'],
@@ -89,8 +90,8 @@ let ym=CONFIG.month;
 if(!ym){const d=new Date(now.getFullYear(),now.getMonth()+(now.getDate()>=15?1:0),1);ym=d.getFullYear()+'-'+pad(d.getMonth()+1)}
 const [Y,M]=ym.split('-').map(Number);
 const dates=[];
-for(let d=new Date(Y,M-1,1);d.getMonth()===M-1;d.setDate(d.getDate()+1))if(d.getDay()===0)dates.push(Y+'-'+pad(M)+'-'+pad(d.getDate()));
-if(CONFIG.skipLastSunday)dates.pop();
+for(let d=new Date(Y,M-1,1);d.getMonth()===M-1;d.setDate(d.getDate()+1))if(d.getDay()===CONFIG.serviceDay)dates.push(Y+'-'+pad(M)+'-'+pad(d.getDate()));
+if(CONFIG.skipLast)dates.pop();
 CONFIG.extraDates.forEach(x=>{if(x.startsWith(ym)&&!dates.includes(x))dates.push(x)});
 dates.sort();
 const dObj=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
