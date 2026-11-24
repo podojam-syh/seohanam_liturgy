@@ -2,11 +2,12 @@
 // 시트 탭 이름: 응답 (없으면 자동으로 만들어요)
 // 코드를 고친 뒤에는 꼭 [배포 → 배포 관리 → 편집 → 새 버전]으로 다시 배포해야 반영돼요.
 
+var SHEET_ID = '11JQAo0B6XtxT5dw1RUPhcJajFMq_m-4KuBte758O-to'; // 전례봉사 가능날짜 응답 시트
 var SHEET = '응답';
 var HEAD = ['제출시각', '달', '이름', '세례명', '학년', '가능날짜', '가능횟수', '메모'];
 
 function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(SHEET_ID);
   var sh = ss.getSheetByName(SHEET);
   if (!sh) {
     sh = ss.insertSheet(SHEET);
